@@ -11,7 +11,9 @@
     "socket.io": "^4.7.2",
     "pg": "^8.11.3",
     "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "redis": "^4.6.10",
+    "@socket.io/redis-adapter": "^8.2.1"
   },
   "engines": {
     "node": "18.x"
