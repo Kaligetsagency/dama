@@ -1,10 +1,14 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { Pool } = require('pg'); // Swapped sqlite3 for pg
+const { Pool } = require('pg'); // PostgreSQL
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const cors = require('cors');
+
+// --- REDIS IMPORTS (Phase 2) ---
+const { createClient } = require('redis');
+const { createAdapter } = require('@socket.io/redis-adapter');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,16 +18,32 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(cors());
 
-// --- DATABASE SETUP (PostgreSQL via Railway) ---
-// This automatically connects to the database using the link Railway provides
+// ==========================================
+// 1. REDIS SETUP (The "Shared Brain")
+// ==========================================
+if (process.env.REDIS_URL) {
+    const pubClient = createClient({ url: process.env.REDIS_URL });
+    const subClient = pubClient.duplicate();
+
+    Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+        io.adapter(createAdapter(pubClient, subClient));
+        console.log('✅ Connected to Redis: Servers can now talk to each other!');
+    }).catch(err => console.error('❌ Redis Connection Error:', err));
+} else {
+    console.log('⚠️ No REDIS_URL found. Running in single-server mode.');
+}
+
+// ==========================================
+// 2. DATABASE SETUP (PostgreSQL via Railway)
+// ==========================================
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false // Allows secure external connections
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false // Secure connections
 });
 
 // Create tables automatically when the server starts
 pool.connect().then(client => {
-    console.log('Connected to PostgreSQL database.');
+    console.log('✅ Connected to PostgreSQL database.');
     client.query(`
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -53,13 +73,13 @@ pool.connect().then(client => {
         INSERT INTO admin_wallet (id, balance) VALUES (1, 0) ON CONFLICT (id) DO NOTHING;
     `).then(() => {
         client.release();
-        console.log("Database tables verified.");
-    }).catch(err => console.error("Error creating tables:", err));
-}).catch(err => console.error("Database connection error. Are you missing DATABASE_URL?:", err.message));
+        console.log("✅ Database tables verified.");
+    }).catch(err => console.error("❌ Error creating tables:", err));
+}).catch(err => console.error("❌ Database connection error. Are you missing DATABASE_URL?:", err.message));
 
-const ADMIN_PIN = "2024";
-
-// --- API ROUTES ---
+// ==========================================
+// 3. API ROUTES (Registration, Login, Wallet)
+// ==========================================
 app.post('/api/register', async (req, res) => {
     const { phone, password, username } = req.body;
     if (!phone || !password) return res.status(400).json({ error: 'Jaza nafasi zote' });
@@ -125,7 +145,9 @@ app.post('/api/withdraw', async (req, res) => {
     } catch(err) { res.status(500).json({error: 'Error processing withdrawal'}); }
 });
 
-// --- GAME SERVER LOGIC ---
+// ==========================================
+// 4. GAME SERVER LOGIC (WebSockets)
+// ==========================================
 let openChallenges = []; 
 const activeRooms = {};
 
@@ -221,6 +243,7 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Redis Adapter automatically broadcasts this move to the correct room, even if players are on different servers!
     socket.on('make_move', (data) => { if (socket.roomId) socket.to(socket.roomId).emit('opponent_move', data); });
 
     const handleGameOver = async (roomId, winnerSocketId, reason) => {
@@ -286,4 +309,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 7860;
-server.listen(PORT, () => console.log(`Server running on ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
