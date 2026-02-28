@@ -13,7 +13,8 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "redis": "^4.6.10",
-    "@socket.io/redis-adapter": "^8.2.1"
+    "@socket.io/redis-adapter": "^8.2.1",
+    "uuid": "^9.0.1"
   },
   "engines": {
     "node": "18.x"
