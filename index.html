@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vuta Pumzi | eSports Dama</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #16a34a; --dark: #0f172a; --surface: #1e293b; --text: #f8fafc; --accent: #eab308;
+            --voda: #e60000; --tigo: #0087cf; --airtel: #ff0000;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; background: var(--dark); color: var(--text); overflow-x: hidden; }
+        .hidden { display: none !important; }
+        
+        .screen { position: absolute; top: 0; left: 0; width: 100%; min-height: 100vh; display: flex; flex-direction: column; background: var(--dark); overflow-y: auto; padding-bottom: 80px;}
+        .btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: pointer; }
+        .btn:active { transform: scale(0.98); }
+        .btn-outline { background: transparent; border: 2px solid #334155; }
+        input, select { width: 100%; padding: 15px; margin: 10px 0; background: #334155; border: none; color: white; border-radius: 8px; text-align: center; }
+
+        /* Navigation & Header */
+        .top-nav { padding: 15px; background: var(--surface); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); position: sticky; top:0; z-index: 40; }
+        .menu-btn { font-size: 24px; cursor: pointer; color: var(--text); }
+        .side-menu { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background: var(--surface); z-index: 55; transition: 0.3s; padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
+        .side-menu.open { left: 0; }
+        .menu-link { padding: 15px 0; border-bottom: 1px solid #334155; cursor: pointer; font-weight: bold; }
+        
+        .wallet-pill { background: #064e3b; padding: 8px 15px; border-radius: 20px; font-size: 14px; color: white; border: 1px solid var(--primary); display: flex; align-items: center; cursor: pointer; }
+        
+        #lobby-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .challenge-card { background: var(--surface); padding: 15px; margin-bottom: 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--accent); }
+        .join-btn { background: var(--accent); color: black; border: none; padding: 8px 20px; border-radius: 20px; font-weight: bold; }
+        
+        /* Modals */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 60; display: flex; justify-content: center; align-items: center; }
+        .modal-box { background: var(--surface); padding: 25px; border-radius: 15px; width: 95%; max-width: 400px; max-height: 90vh; overflow-y: auto; text-align: center; }
+        .modal-tabs { display: flex; margin-bottom: 15px; border-bottom: 1px solid #334155; }
+        .tab { flex: 1; padding: 10px; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent; }
+        .tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); font-weight: bold; }
+
+        .net-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 15px 0; }
+        .net-btn { padding: 10px; border-radius: 8px; border: 2px solid #334155; cursor: pointer; opacity: 0.6; font-size: 12px; font-weight: bold; }
+        .net-btn.selected { border-color: white; opacity: 1; transform: scale(1.05); }
+        .net-btn.voda { background: var(--voda); color: white; } .net-btn.tigo { background: var(--tigo); color: white; } .net-btn.airtel { background: var(--airtel); color: white; }
+
+        /* Game Board */
+        #game-board-container { display: grid; grid-template-columns: repeat(8, 1fr); gap: 0; width: 95vw; max-width: 450px; aspect-ratio: 1; margin: 10px auto; border: 4px solid #475569; background: #334155; }
+        .cell { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        .cell.black { background: #1e293b; } .cell.white { background: #cbd5e1; }
+        
+        .piece { width: 80%; height: 80%; border-radius: 50%; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.5); z-index: 2; transition: transform 0.2s; }
+        .piece.red { background: radial-gradient(circle at 30% 30%, #ef4444, #991b1b); border: 2px solid #7f1d1d; }
+        .piece.white { background: radial-gradient(circle at 30% 30%, #f8fafc, #94a3b8); border: 2px solid #64748b; }
+        .piece.king::after { content: '👑'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; }
+        
+        .selected-piece { border: 3px solid #eab308 !important; transform: scale(1.1); box-shadow: 0 0 15px #eab308; }
+        .valid-move::after { content: ''; width: 25%; height: 25%; background: #22c55e; border-radius: 50%; position: absolute; }
+        
+        .timer-box { font-size: 24px; font-weight: bold; background: #334155; padding: 5px 15px; border-radius: 10px; color: var(--accent); }
+        .timer-warning { color: #ef4444; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        /* Content Pages */
+        .content-container { padding: 20px; line-height: 1.6; color: #cbd5e1; }
+        .content-container h2 { color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div id="side-menu" class="side-menu">
+        <div style="text-align:right; font-size:24px; cursor:pointer;" onclick="toggleMenu()">&times;</div>
+        <h2 style="color:var(--primary); margin-top:0;">Menu</h2>
+        <div class="menu-link" onclick="navTo('lobby-screen')"><i class="fas fa-home"></i> Ulingo (Lobby)</div>
+        <div class="menu-link" onclick="openWallet(); toggleMenu();"><i class="fas fa-wallet"></i> Akaunti & Pesa</div>
+        <div class="menu-link" onclick="navTo('rules-screen')"><i class="fas fa-book"></i> Sheria za Mchezo</div>
+        <div class="menu-link" onclick="navTo('about-screen')"><i class="fas fa-info-circle"></i> Kuhusu Sisi</div>
+        <div class="menu-link" onclick="location.reload()" style="color:#ef4444;"><i class="fas fa-sign-out-alt"></i> Ondoka</div>
+    </div>
+
+    <div id="landing-screen" class="screen" style="justify-content:center; align-items:center; padding:20px; text-align:center; background: linear-gradient(180deg, var(--dark) 0%, #064e3b 100%);">
+        <h1 style="color:var(--primary); font-size: 45px; margin-bottom: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">VUTA PUMZI</h1>
+        <p style="color:#f8fafc; font-size: 18px; margin-top: 5px;">Tanzania's Premier Dama eSports Platform</p>
+        <div style="margin: 30px 0; color: #94a3b8;">
+            <p>✔️ Cheza mechi za ushindani dhidi ya wachezaji halisi.</p>
+            <p>✔️ Pambana kwenye viwango (Elo System).</p>
+            <p>✔️ Jishindie zawadi taslimu.</p>
+        </div>
+        <button class="btn" style="font-size: 20px; padding: 20px;" onclick="navTo('auth-screen')">INGIA UWANJANI</button>
+    </div>
+
+    <div id="auth-screen" class="screen hidden" style="justify-content:center; align-items:center; padding:20px;">
+        <h2 style="color:var(--primary);">Ingia / Sajili</h2>
+        <div id="login-form" style="width:100%; max-width:300px">
+            <input type="text" id="l-phone" placeholder="Namba ya Simu" inputmode="numeric">
+            <input type="password" id="l-pass" placeholder="Nenosiri">
+            <button class="btn" onclick="login()">INGIA</button>
+            <button class="btn btn-outline" onclick="toggleReg()">Tengeneza Akaunti</button>
+        </div>
+        <div id="reg-form" class="hidden" style="width:100%; max-width:300px">
+            <input type="text" id="r-user" placeholder="Jina la Ushindani (Username)">
+            <input type="text" id="r-phone" placeholder="Namba ya Simu" inputmode="numeric">
+            <input type="password" id="r-pass" placeholder="Nenosiri">
+            <button class="btn" onclick="register()">SAJILI</button>
+            <button class="btn btn-outline" onclick="toggleReg()">Rudi Ingia</button>
+        </div>
+    </div>
+
+    <div id="lobby-screen" class="screen hidden">
+        <div class="top-nav">
+            <div class="menu-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i></div>
+            <div style="font-weight:900; color:var(--primary)">VUTA PUMZI</div>
+            <div class="wallet-pill" onclick="openWallet()"><span id="bal-display">0 TZS</span></div>
+        </div>
+        
+        <div style="padding:15px; background:#334155; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <span id="mode-label" style="color:var(--primary); font-weight:bold;">REAL MONEY MATCHES</span><br>
+                <small style="color:#94a3b8">Elo Yako: <span id="elo-display">1200</span></small>
+            </div>
+            <button onclick="toggleMode()" style="background:var(--accent); border:none; color:black; font-weight:bold; padding:8px 12px; border-radius:5px;">Badili Mode</button>
+        </div>
+        
+        <div id="lobby-list"></div>
+        
+        <div style="padding:20px;">
+            <button class="btn" onclick="openCreateModal()">TENGENEZA MECHI</button>
+            <button id="btn-demo-bot" class="btn btn-outline hidden" onclick="startDemoBot()">CHEZA NA KOMPYUTA (DEMO)</button>
+        </div>
+    </div>
+
+    <div id="rules-screen" class="screen hidden">
+        <div class="top-nav">
+            <div class="menu-btn" onclick="navTo('lobby-screen')"><i class="fas fa-arrow-left"></i></div>
+            <div style="font-weight:bold;">Sheria za Mchezo</div>
+            <div style="width:24px;"></div>
+        </div>
+        <div class="content-container">
+            <h2>Sheria za eSports Dama</h2>
+            <ul>
+                <li><b>Kula ni Lazima:</b> Kama kuna nafasi ya kula kete ya mpinzani, mfumo utakazimisha kufanya hivyo.</li>
+                <li><b>Muda:</b> Una sekunde 10 kufanya maamuzi. Ukichelewa, utapoteza mechi.</li>
+                <li><b>King (Kete Kuu):</b> Kete ikifika mwisho, inakuwa King. King anaruka umbali wowote wa ulalo (Flying King).</li>
+                <li><b>Kukatisha Mechi:</b> Ukiondoka wakati mechi inaendelea, mpinzani wako atapewa ushindi.</li>
+                <li><b>Droo (Sare):</b> Wachezaji wanaweza kukubaliana droo. Ada ya mfumo (10%) itakatwa.</li>
+                <li><b>Viwango (Elo):</b> Kila ushindi unaongeza alama zako za Elo, na kipigo kinapunguza alama.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="about-screen" class="screen hidden">
+        <div class="top-nav">
+            <div class="menu-btn" onclick="navTo('lobby-screen')"><i class="fas fa-arrow-left"></i></div>
+            <div style="font-weight:bold;">Kuhusu Sisi</div>
+            <div style="width:24px;"></div>
+        </div>
+        <div class="content-container">
+            <h2>Vuta Pumzi eSports</h2>
+            <p>Vuta Pumzi sio mfumo wa kamari. Ni jukwaa la kidijitali (eSports) linalowakutanisha mahiri wa mchezo wa Dama kutoka maeneo mbalimbali kushindana kwa ujuzi.</p>
+            <p>Washindani hulipa Ada ya Kuingia (Entry Fee) ili kushiriki mechi, na mshindi anachukua Zawadi (Prize Pool) baada ya kutoa ada ndogo ya kuendesha mfumo.</p>
+        </div>
+    </div>
+
+    <div id="wallet-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <h3>Akaunti Yako</h3>
+            <div class="modal-tabs">
+                <div class="tab active" onclick="setWalletTab('deposit')" id="wt-dep">Weka</div>
+                <div class="tab" onclick="setWalletTab('withdraw')" id="wt-wit">Toa</div>
+                <div class="tab" onclick="setWalletTab('history')" id="wt-his">Historia</div>
+            </div>
+            <div id="w-content-deposit">
+                <div class="net-grid">
+                    <div class="net-btn voda selected" onclick="selNet(this, 'MPESA')">M-Pesa</div>
+                    <div class="net-btn tigo" onclick="selNet(this, 'TIGOPESA')">Tigo</div>
+                    <div class="net-btn airtel" onclick="selNet(this, 'AIRTEL')">Airtel</div>
+                </div>
+                <input type="number" id="d-amount" placeholder="Kiasi (Min 1000)" value="2000">
+                <button class="btn" onclick="processDeposit()">WEKA SALIO</button>
+            </div>
+            <div id="w-content-withdraw" class="hidden">
+                <p>Salio: <span id="w-avail-bal" style="color:var(--primary)"></span></p>
+                <div class="net-grid"><div class="net-btn voda" onclick="selNet(this,'MPESA')">M-Pesa</div><div class="net-btn tigo" onclick="selNet(this,'TIGOPESA')">Tigo</div><div class="net-btn airtel" onclick="selNet(this,'AIRTEL')">Airtel</div></div>
+                <input type="number" id="w-amount" placeholder="Kiasi">
+                <button class="btn" onclick="processWithdraw()">TOA ZAWADI</button>
+            </div>
+            <div id="w-content-history" class="hidden"><div id="tx-list"></div></div>
+            <button class="btn btn-outline" style="margin-top:20px" onclick="closeModals()">Funga</button>
+        </div>
+    </div>
+
+    <div id="create-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <h3>Tengeneza Mechi</h3>
+            <input type="number" id="c-stake" placeholder="Ada ya Kuingia (Mf: 2000)" value="2000">
+            <select id="c-privacy">
+                <option value="public">Wazi (Public)</option>
+                <option value="private">Siri (Private Code)</option>
+            </select>
+            <button class="btn" onclick="createChallenge()">TENGENEZA</button>
+            <hr style="border-color:#334155; margin:20px 0;">
+            <p>Ingiza Kodi ya Siri:</p>
+            <input type="text" id="j-code" placeholder="KODI" style="text-transform:uppercase;">
+            <button class="btn" style="background:var(--accent); color:black;" onclick="joinPrivate()">JIUNGE KWA KODI</button>
+            <button class="btn btn-outline" style="margin-top:15px" onclick="closeModals()">Funga</button>
+        </div>
+    </div>
+
+    <div id="bot-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <h3>Chagua Ugumu</h3>
+            <select id="bot-diff">
+                <option value="1">Rahisi (Easy)</option>
+                <option value="2">Wastani (Medium)</option>
+                <option value="3">Ngumu (Hard)</option>
+            </select>
+            <button class="btn" onclick="initBotGame()">ANZA MECHI</button>
+            <button class="btn btn-outline" onclick="closeModals()">Funga</button>
+        </div>
+    </div>
+
+    <div id="waiting-screen" class="screen hidden" style="justify-content:center; align-items:center; text-align:center;">
+        <h2 style="color:var(--primary)">Inasubiri Mpinzani...</h2>
+        <div id="room-code-display" style="font-size:40px; color:white; font-weight:bold; letter-spacing:5px; margin:20px 0; background:#334155; padding:10px 20px; border-radius:10px;"></div>
+        <p>Tafadhali usiondoke kwenye ukurasa.</p>
+        <button class="btn btn-outline" style="width:200px" onclick="cancelChallenge()">Ghairi Mechi</button>
+    </div>
+
+    <div id="game-screen" class="screen hidden">
+        <div class="top-nav">
+            <div id="p1-name" style="font-weight:bold;">Me</div>
+            <div class="timer-box" id="move-timer">10</div>
+            <div id="p2-name" style="font-weight:bold;">Opp</div>
+        </div>
+        <div style="text-align:center; padding:10px;">
+            <span style="color:var(--accent); font-weight:bold;">Zawadi: <span id="game-stake">...</span></span>
+        </div>
+        <div id="game-status" style="text-align:center; padding:5px; font-weight:bold; color:#eab308; min-height: 25px;"></div>
+        <div id="game-board-container"></div>
+        <div style="padding:20px; text-align:center;">
+            <button class="btn btn-outline" style="width:45%; display:inline-block;" onclick="offerDraw()">Omba Droo</button>
+            <button class="btn" style="width:45%; display:inline-block; background:#ef4444;" onclick="surrender()">Salimu Amri</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let user = null, mode = 'real', selectedNetwork = 'MPESA';
+        
+        // --- UI & NAV ---
+        function toggleMenu() { document.getElementById('side-menu').classList.toggle('open'); }
+        function navTo(screenId) {
+            toggleMenu();
+            if(screenId === 'lobby-screen' && !user) return navTo('auth-screen');
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+        function toggleReg(){ document.getElementById('reg-form').classList.toggle('hidden'); document.getElementById('login-form').classList.toggle('hidden'); }
+        function closeModals(){ document.querySelectorAll('.modal-overlay').forEach(e=>e.classList.add('hidden')); }
+
+        // --- AUTH ---
+        async function login(){
+            try {
+                const res = await fetch('/api/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone:document.getElementById('l-phone').value, password:document.getElementById('l-pass').value})});
+                const d = await res.json();
+                if(d.success) { user=d.user; navTo('lobby-screen'); refreshData(); } else alert(d.error);
+            } catch(e){ alert("Network Error"); }
+        }
+        async function register(){
+            const res = await fetch('/api/register', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone:document.getElementById('r-phone').value, password:document.getElementById('r-pass').value, username:document.getElementById('r-user').value})});
+            if((await res.json()).success){ alert('Umefanikiwa Kusajili!'); toggleReg(); } else alert("Error");
+        }
+        async function refreshData(){
+            const d = await (await fetch(`/api/user-data/${user.id}`)).json();
+            user.real_balance=d.real_balance; user.demo_balance=d.demo_balance; user.elo=d.elo; user.transactions=d.transactions;
+            document.getElementById('bal-display').innerText = (mode==='real'?user.real_balance:user.demo_balance).toLocaleString();
+            document.getElementById('elo-display').innerText = user.elo;
+            document.getElementById('mode-label').innerText = mode==='real'?"MECHI ZA PESA HALISI":"MECHI ZA MAZOEZI (DEMO)";
+            // SHOW OR HIDE COMPUTER BOT BUTTON BASED ON MODE
+            document.getElementById('btn-demo-bot').className = mode==='real'?'hidden':'btn btn-outline';
+        }
+        function toggleMode(){ mode=mode==='real'?'demo':'real'; refreshData(); socket.emit('refresh_lobby'); }
+
+        // --- WALLET ---
+        function openWallet(){ document.getElementById('wallet-modal').classList.remove('hidden'); setWalletTab('deposit'); refreshData(); }
+        function setWalletTab(t){
+            ['deposit','withdraw','history'].forEach(x=>{ document.getElementById(`wt-${x.substr(0,3)}`).className=`tab ${x===t?'active':''}`; document.getElementById(`w-content-${x}`).classList.add('hidden'); });
+            document.getElementById(`w-content-${t}`).classList.remove('hidden');
+            if(t==='withdraw') document.getElementById('w-avail-bal').innerText = user.real_balance.toLocaleString();
+            if(t==='history') {
+                const l=document.getElementById('tx-list'); l.innerHTML='';
+                user.transactions.forEach(tx=>{ l.innerHTML+=`<div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #334155; font-size:13px;"><div><b>${tx.type}</b><br><small>${tx.date.substr(0,16)}</small></div><div style="color:${(tx.type==='DEPOSIT'||tx.type==='PRIZE_PAYOUT')?'#22c55e':'#ef4444'}">${tx.amount.toLocaleString()}</div></div>`});
+            }
+        }
+        function selNet(el, n){ selectedNetwork=n; document.querySelectorAll('.net-btn').forEach(b=>b.classList.remove('selected')); el.classList.add('selected'); }
+        async function processDeposit(){
+            const amt = document.getElementById('d-amount').value;
+            const d = await (await fetch('/api/deposit', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:user.id, amount:parseInt(amt), network:selectedNetwork})})).json();
+            if(d.success){ alert("Tayari!"); closeModals(); refreshData(); }
+        }
+        async function processWithdraw(){
+            const d = await (await fetch('/api/withdraw', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:user.id, amount:parseInt(document.getElementById('w-amount').value), network:selectedNetwork})})).json();
+            if(d.success){ alert(d.message); closeModals(); refreshData(); } else alert(d.error);
+        }
+
+        // --- LOBBY LOGIC ---
+        function openCreateModal(){ document.getElementById('create-modal').classList.remove('hidden'); }
+        function createChallenge(){ 
+            socket.emit('create_challenge', {userId:user.id, username:user.username, stake:parseInt(document.getElementById('c-stake').value), mode, isPrivate: document.getElementById('c-privacy').value === 'private', elo: user.elo}); 
+            closeModals(); 
+        }
+        function joinPrivate(){ socket.emit('join_challenge', {userId:user.id, username:user.username, roomId:document.getElementById('j-code').value.toUpperCase(), elo: user.elo}); closeModals(); }
+        function join(rid){ socket.emit('join_challenge', {userId:user.id, username:user.username, roomId:rid, elo: user.elo}); }
+        function cancelChallenge(){ socket.emit('cancel_challenge'); }
+
+        socket.on('lobby_update', c=>{
+            const l=document.getElementById('lobby-list'); l.innerHTML='';
+            // ELO Filtering logic (+/- 300)
+            const filtered = c.filter(x => x.mode === mode && Math.abs(x.elo - (user?.elo || 1200)) <= 300);
+            if(filtered.length === 0) l.innerHTML = '<p style="text-align:center; color:#94a3b8; margin-top:30px;">Hakuna mechi kwa kiwango chako kwasasa. Tengeneza yako!</p>';
+            filtered.forEach(g=>{ l.innerHTML+=`<div class="challenge-card"><div><b>${g.hostName}</b> <small>(Elo: ${g.elo})</small><br><span style="color:var(--primary); font-weight:bold;">Tsh ${g.stake.toLocaleString()}</span></div><button class="join-btn" onclick="join('${g.roomId}')">Pambana</button></div>`; });
+        });
+        
+        socket.on('game_created', d=>{ navTo('waiting-screen'); if(d.isPrivate){ document.getElementById('room-code-display').innerText=d.roomId; document.getElementById('room-code-display').classList.remove('hidden'); } else document.getElementById('room-code-display').classList.add('hidden'); });
+        socket.on('challenge_cancelled', ()=>{ navTo('lobby-screen'); refreshData(); });
+        socket.on('error', d=> alert(d.message));
+
+        // --- GAMEPLAY ENGINE ---
+        let board=[], myColor, turn='red', myId, selectedPiece=null, validMoves=[];
+        let mustCaptureFrom = null, globalMustCapturePieces = []; 
+        let isBotGame = false, botDiff = 1;
+        let timerInterval, timeLeft = 10;
+        const BOARD_SIZE = 8;
+
+        // --- PLAY VS COMPUTER INITIALIZATION ---
+        function startDemoBot() { document.getElementById('bot-modal').classList.remove('hidden'); }
+        function initBotGame() {
+            botDiff = parseInt(document.getElementById('bot-diff').value);
+            isBotGame = true; 
+            closeModals();
+            document.getElementById('p1-name').innerText = user.username;
+            document.getElementById('p2-name').innerText = "Kompyuta";
+            document.getElementById('game-stake').innerText = "Mazoezi tu";
+            startGame({ players: { red: socket.id, white: 'bot' }, usernames: { red: user.username, white: 'Bot' } });
+        }
+
+        socket.on('game_start', d=>{ 
+            isBotGame = false;
+            document.getElementById('p1-name').innerText = d.usernames.red;
+            document.getElementById('p2-name').innerText = d.usernames.white;
+            document.getElementById('game-stake').innerText = "Tsh " + (d.stake * 2).toLocaleString();
+            startGame(d);
+        });
+
+        function startGame(data) {
+            myId = socket.id; myColor = data.players.red === myId ? 'red' : 'white';
+            turn = 'red'; mustCaptureFrom = null; globalMustCapturePieces = [];
+            navTo('game-screen'); initBoard(); analyzeGlobalState(); renderBoard(); startTimer();
+            // If bot is red, bot moves first
+            if(isBotGame && turn !== myColor) setTimeout(botMakeMove, 1000);
+        }
+
+        function initBoard() {
+            board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+            for(let r=0;r<BOARD_SIZE;r++) for(let c=0;c<BOARD_SIZE;c++) if((r+c)%2===1){
+                if(r<3) board[r][c] = {color:'white', king:false};
+                if(r>4) board[r][c] = {color:'red', king:false};
+            }
+        }
+
+        // Timer Logic
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 10;
+            updateTimerUI();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerUI();
+                if(timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    if(turn === myColor && !isBotGame) socket.emit('timeout_loss');
+                    else if(isBotGame && turn === myColor) { alert("Umechelewa! Kompyuta imeshinda."); navTo('lobby-screen'); }
+                }
+            }, 1000);
+        }
+        function updateTimerUI() {
+            const t = document.getElementById('move-timer');
+            t.innerText = timeLeft;
+            if(timeLeft <= 3) t.classList.add('timer-warning'); else t.classList.remove('timer-warning');
+        }
+
+        // Global Force Capture check
+        function analyzeGlobalState() {
+            globalMustCapturePieces = [];
+            for(let r=0;r<BOARD_SIZE;r++) for(let c=0;c<BOARD_SIZE;c++) {
+                if(board[r][c] && board[r][c].color === turn) {
+                    const moves = getMovesForPiece(r, c, board[r][c]);
+                    if(moves.some(m => m.capture)) globalMustCapturePieces.push({r, c});
+                }
+            }
+        }
+
+        function renderBoard() {
+            const con = document.getElementById('game-board-container'); con.innerHTML = '';
+            const rotate = myColor === 'white';
+            const status = document.getElementById('game-status');
+            
+            if (turn === myColor) {
+                status.innerText = mustCaptureFrom ? "RUKA TENA (CHAIN JUMP)!" : (globalMustCapturePieces.length > 0 ? "KULA NI LAZIMA!" : "ZAMU YAKO");
+                status.style.color = "#22c55e";
+            } else { status.innerText = isBotGame ? "Kompyuta inafikiri..." : "Zamu ya Mpinzani..."; status.style.color = "#eab308"; }
+
+            for(let r=0;r<BOARD_SIZE;r++) for(let c=0;c<BOARD_SIZE;c++) {
+                const cell = document.createElement('div'); cell.className = `cell ${(r+c)%2===1?'black':'white'}`;
+                const dR = rotate ? 7-r : r; const dC = rotate ? 7-c : c;
+                
+                cell.onclick = () => handleCellClick(dR, dC);
+                if(validMoves.some(m => m.r === dR && m.c === dC)) cell.classList.add('valid-move');
+
+                const p = board[dR][dC];
+                if(p) {
+                    const pDiv = document.createElement('div'); pDiv.className = `piece ${p.color} ${p.king?'king':''}`;
+                    if(selectedPiece && selectedPiece.r===dR && selectedPiece.c===dC) pDiv.classList.add('selected-piece');
+                    // Highlight forced pieces
+                    if(turn === myColor && ((mustCaptureFrom && mustCaptureFrom.r===dR && mustCaptureFrom.c===dC) || 
+                       (!mustCaptureFrom && globalMustCapturePieces.some(gp=>gp.r===dR && gp.c===dC)))) 
+                        pDiv.style.border = "3px solid #ef4444";
+                    cell.appendChild(pDiv);
+                }
+                con.appendChild(cell);
+            }
+        }
+
+        function handleCellClick(r, c) {
+            if(turn !== myColor) return;
+            const clickedPiece = board[r][c];
+
+            // 1. Select
+            if(clickedPiece && clickedPiece.color === myColor) {
+                if (mustCaptureFrom && (mustCaptureFrom.r !== r || mustCaptureFrom.c !== c)) return;
+                if (!mustCaptureFrom && globalMustCapturePieces.length > 0 && !globalMustCapturePieces.some(gp=>gp.r===r && gp.c===c)) return;
+
+                selectedPiece = {r, c};
+                validMoves = getMovesForPiece(r, c, clickedPiece).filter(m => globalMustCapturePieces.length === 0 || m.capture);
+                renderBoard(); return;
+            }
+
+            // 2. Move
+            if(!clickedPiece && selectedPiece) {
+                const move = validMoves.find(m => m.r === r && m.c === c);
+                if(move) executeMove(selectedPiece, move);
+            }
+        }
+
+        function isOnBoard(r, c) { return r>=0 && r<8 && c>=0 && c<8; }
+
+        function getMovesForPiece(r, c, piece) {
+            let moves = [];
+            let dirs = piece.king ? [[-1,-1],[-1,1],[1,-1],[1,1]] : (piece.color==='red'?[[-1,-1],[-1,1]]:[[1,-1],[1,1]]);
+            
+            dirs.forEach(d => {
+                if(piece.king) {
+                    let step = 1, foundEnemy = null;
+                    while(true) {
+                        const nR = r + d[0]*step, nC = c + d[1]*step;
+                        if(!isOnBoard(nR, nC)) break;
+                        const cell = board[nR][nC];
+                        if(cell) {
+                            if(cell.color === piece.color) break; 
+                            if(foundEnemy) break; 
+                            foundEnemy = {r:nR, c:nC};
+                        } else {
+                            if(foundEnemy) moves.push({r:nR, c:nC, capture: foundEnemy});
+                            else moves.push({r:nR, c:nC, capture: null});
+                        }
+                        step++;
+                    }
+                } else {
+                    const nR=r+d[0], nC=c+d[1], jR=r+(d[0]*2), jC=c+(d[1]*2);
+                    if(isOnBoard(jR, jC) && !board[jR][jC] && board[nR][nC] && board[nR][nC].color !== piece.color) 
+                        moves.push({r:jR, c:jC, capture:{r:nR, c:nC}});
+                    else if(isOnBoard(nR, nC) && !board[nR][nC]) 
+                        moves.push({r:nR, c:nC, capture:null});
+                }
+            });
+            return moves;
+        }
+
+        function executeMove(from, move) {
+            if(!isBotGame) socket.emit('make_move', {from, to:{r:move.r, c:move.c}, capture:move.capture});
+            applyMove(from, {r:move.r, c:move.c}, move.capture);
+        }
+
+        function applyMove(from, to, capture) {
+            const piece = board[from.r][from.c];
+            board[to.r][to.c] = piece; board[from.r][from.c] = null;
+            if(capture) board[capture.r][capture.c] = null;
+
+            if((piece.color==='red' && to.r===0) || (piece.color==='white' && to.r===7)) piece.king = true;
+
+            let chainAvailable = false;
+            if (capture) {
+                const furtherMoves = getMovesForPiece(to.r, to.c, piece);
+                if (furtherMoves.some(m => m.capture)) chainAvailable = true;
+            }
+
+            if (chainAvailable) {
+                mustCaptureFrom = {r: to.r, c: to.c};
+                selectedPiece = mustCaptureFrom;
+                validMoves = getMovesForPiece(to.r, to.c, piece).filter(m => m.capture);
+                globalMustCapturePieces = [mustCaptureFrom];
+            } else {
+                turn = turn==='red'?'white':'red';
+                mustCaptureFrom = null; selectedPiece = null; validMoves = [];
+                analyzeGlobalState(); startTimer();
+                
+                // TRIGGER AI BOT TURN
+                if(isBotGame && turn !== myColor) setTimeout(botMakeMove, 1000);
+            }
+            renderBoard(); checkWin();
+        }
+
+        socket.on('opponent_move', d => applyMove(d.from, d.to, d.capture));
+
+        function checkWin() {
+            let r=0, w=0, rMoves=0, wMoves=0;
+            for(let i=0;i<8;i++) for(let j=0;j<8;j++) { 
+                const p = board[i][j];
+                if(p?.color==='red') { r++; rMoves += getMovesForPiece(i,j,p).length; }
+                if(p?.color==='white') { w++; wMoves += getMovesForPiece(i,j,p).length; }
+            }
+            
+            if(r===0 || rMoves===0) endGame('white');
+            if(w===0 || wMoves===0) endGame('red');
+        }
+
+        function endGame(winnerColor) {
+            clearInterval(timerInterval);
+            if(isBotGame) {
+                alert(winnerColor === myColor ? "Umeshinda! Hongera." : "Kompyuta Imeshinda.");
+                navTo('lobby-screen'); refreshData();
+            } else {
+                if(winnerColor === myColor) socket.emit('game_over', {winner:'me'});
+            }
+        }
+
+        socket.on('match_result', d=>{ 
+            clearInterval(timerInterval);
+            if(d.isDraw) alert(`Mechi Imekwisha Sare! Umerudishiwa Tsh ${d.refund}`);
+            else if(d.reason === 'abandon') alert("Mpinzani amekimbia. Umeshinda!");
+            else if(d.reason === 'timeout') alert("Muda umekwisha. Mshindi amepatikana!");
+            else alert(d.winnerId === user.id ? "HONGERA! UMESHINDA ZAWADI." : "Pole, umeshindwa mechi.");
+            navTo('lobby-screen'); refreshData(); 
+        });
+
+        function surrender() { if(confirm("Unataka kusalimu amri?")) { if(!isBotGame) socket.emit('game_over', {winner:'opp'}); else navTo('lobby-screen'); } }
+        
+        function offerDraw() { if(!isBotGame) { socket.emit('offer_draw'); alert("Ombi la sare limetumwa."); } else alert("Huwezi kuomba sare kwa Kompyuta."); }
+        socket.on('draw_offered', () => { if(confirm("Mpinzani anaomba Sare (Droo). Ada ya mfumo (10%) itakatwa. Unakubali?")) socket.emit('accept_draw'); });
+
+        // --- COMPUTER AI (BOT) LOGIC ---
+        function botMakeMove() {
+            if(turn === myColor || !isBotGame) return;
+            const botColor = myColor === 'red' ? 'white' : 'red';
+            let allMoves = [];
+            
+            for(let r=0;r<8;r++) for(let c=0;c<8;c++) {
+                if(board[r][c] && board[r][c].color === botColor) {
+                    if(globalMustCapturePieces.length > 0 && !globalMustCapturePieces.some(gp=>gp.r===r && gp.c===c)) continue;
+                    let mvs = getMovesForPiece(r, c, board[r][c]);
+                    if(globalMustCapturePieces.length > 0) mvs = mvs.filter(m=>m.capture);
+                    mvs.forEach(m => allMoves.push({from:{r,c}, move:m}));
+                }
+            }
+            
+            if(allMoves.length === 0) return endGame(myColor);
+
+            // AI Decision Making Based on selected Bot Difficulty
+            let chosen;
+            if(botDiff === 1) { 
+                // Easy: Random move
+                chosen = allMoves[Math.floor(Math.random()*allMoves.length)]; 
+            } else {
+                // Medium/Hard: Prioritize captures and crowning
+                allMoves.sort((a,b) => {
+                    let scoreA = a.move.capture ? 10 : ((a.move.r===0 || a.move.r===7) ? 5 : 0);
+                    let scoreB = b.move.capture ? 10 : ((b.move.r===0 || b.move.r===7) ? 5 : 0);
+                    return scoreB - scoreA;
+                });
+                // Hard always picks the best. Medium sometimes makes a mistake.
+                chosen = botDiff === 2 ? (Math.random()>0.3 ? allMoves[0] : allMoves[Math.floor(Math.random()*allMoves.length)]) : allMoves[0];
+            }
+            
+            applyMove(chosen.from, chosen.move, chosen.move.capture);
+        }
+
+    </script>
+</body>
+</html>
